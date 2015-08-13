@@ -19,6 +19,7 @@
 
 var outlinePrecision = 6;
 var outlineWidth = 9;
+var shapeWidth = 160;
 
 var cylinderMesh = function(a, b, radius, material) {
   var direction = b.clone().sub(a);
@@ -62,7 +63,7 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
 
   var sphereGeometry = new THREE.SphereGeometry(outlineWidth / 2, outlinePrecision, outlinePrecision);
   var axis = new THREE.Vector3(0, 1, 0);
-  var width = new THREE.Vector3(0, width, 0);
+  var widthVector = new THREE.Vector3(0, width, 0);
 
   var innerRadius = new THREE.Vector3(radius - outlineWidth / 2, 0, 0);
   var midleRadius = new THREE.Vector3(radius - outlineWidth / 2 / 2, 0, 0);
@@ -73,14 +74,14 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
     segmentAngle = angle * i / segments;
     if (lastSegmentAngle !== undefined) {
       section = new THREE.BoxGeometry(1, 1, 1);
-      section.vertices[0] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
+      section.vertices[0] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(widthVector);
       section.vertices[1] = outerRadius.clone().applyAxisAngle(axis, segmentAngle);
-      section.vertices[2] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(width);
+      section.vertices[2] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(widthVector);
       section.vertices[3] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
       section.vertices[4] = innerRadius.clone().applyAxisAngle(axis, segmentAngle);
-      section.vertices[5] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
+      section.vertices[5] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(widthVector);
       section.vertices[6] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
-      section.vertices[7] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(width);
+      section.vertices[7] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(widthVector);
 
       section.faces.map(function(face) {
         face.materialIndex = 0;
@@ -99,12 +100,17 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
     group.add(sphere1);
 
     var sphere2 = new THREE.Mesh(sphereGeometry, outlineMaterial);
-    sphere2.position.copy(sphere1.position).add(width)
+    sphere2.position.copy(sphere1.position).add(widthVector)
     group.add(sphere2);
 
     if (lastPosition) {
       group.add(cylinderMesh(lastPosition, sphere1.position, outlineWidth / 2, outlineMaterial));
-      group.add(cylinderMesh(lastPosition.clone().add(width), sphere2.position, outlineWidth / 2, outlineMaterial));
+      group.add(cylinderMesh(
+        lastPosition.clone().add(widthVector),
+        sphere2.position,
+        outlineWidth / 2,
+        outlineMaterial
+      ));
     }
 
     lastPosition = sphere1.position;
@@ -147,28 +153,28 @@ var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
 
 var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-var head = outlinedSheet(150, 118, outlineWidth, yellow, outlineMaterial);
+var head = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial);
 head.position.set(0, 148, -59);
 head.rotation.x = Math.PI / 2;
 scene.add(head);
 
-var middle = outlinedSheet(150, 118, outlineWidth, yellow, outlineMaterial, 1);
+var middle = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial, 1);
 middle.position.set(0, -28, -63);
 middle.rotation.x = Math.PI / 2;
 scene.add(middle);
 
-var leg = outlinedSheet(150, 150, outlineWidth, lightBlue, outlineMaterial);
+var leg = outlinedSheet(shapeWidth, 150, outlineWidth, lightBlue, outlineMaterial);
 leg.position.set(0, -92, -168);
 leg.rotation.x = Math.PI * 1 / 5;
 scene.add(leg);
 
-var back = outlinedSheet(150, 298, outlineWidth, darkBlue, outlineMaterial);
+var back = outlinedSheet(shapeWidth, 298, outlineWidth, darkBlue, outlineMaterial);
 back.position.set(0, -1, 0);
 scene.add(back);
 
-var curve = outlinedCurve(16, Math.PI, 90, 150, outlineWidth, [lightBlue, yellow], outlineMaterial);
-curve.rotation.z = Math.PI/2;
-curve.position.x = 75;
+var curve = outlinedCurve(16, Math.PI, 90, shapeWidth, outlineWidth, [lightBlue, yellow], outlineMaterial);
+curve.rotation.z = Math.PI / 2;
+curve.position.x = shapeWidth / 2;
 curve.position.y = 60;
 curve.position.z = -120;
 scene.add(curve);
