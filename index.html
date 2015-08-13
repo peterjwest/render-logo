@@ -1,265 +1,173 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <title>Outline effect (Three.js)</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <link rel=stylesheet href="css/base.css"/>
+  <title>Outline effect (Three.js)</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 </head>
-<body>
+<body id="body">
 
 <script src="http://threejs.org/build/three.js"></script>
-<script src="js/Detector.js"></script>
-<script src="js/Stats.js"></script>
 <script src="js/OrbitControls.js"></script>
-<script src="js/THREEx.KeyboardState.js"></script>
-<script src="js/THREEx.FullScreen.js"></script>
 <script src="js/THREEx.WindowResize.js"></script>
-<div id="ThreeJS" style="position: absolute; left:0px; top:0px"></div>
 <script>
-/*
-    Three.js "tutorials by example"
-    Author: Lee Stemkoski
-    Date: July 2013 (three.js v59dev)
- */
 
-// MAIN
+var outlinePrecision = 8;
+var outlineWidth = 8;
 
-// standard global variables
-var container, scene1, scene2, camera, renderer, controls, stats;
-var keyboard = new THREEx.KeyboardState();
-var clock = new THREE.Clock();
-// custom global variables
-var cube;
+var cylinderMesh = function(a, b, radius, material) {
+  var direction = b.clone().sub(a);
 
-init();
+  var geometry = new THREE.CylinderGeometry(radius, radius, direction.length(), outlinePrecision, 4);
+  var edge = new THREE.Mesh(geometry, material);
+  edge.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+  edge.position.copy(a.clone().add(direction.clone().multiplyScalar(0.5)));
+
+  return edge;
+};
+
+var outlinedSheet = function(x, y, outlineWidth, material, outlineMaterial, uncapped) {
+  var group = new THREE.Object3D();
+  var geometry = new THREE.BoxGeometry(x, y, outlineWidth / 2);
+  var cube = new THREE.Mesh(geometry, material);
+  group.add(cube);
+
+  var corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
+  var cornerVectors = corners.map(function(position) {
+    var sphereGeometry = new THREE.SphereGeometry(outlineWidth / 2, outlinePrecision, outlinePrecision);
+    var corner = new THREE.Mesh(sphereGeometry, outlineMaterial);
+    corner.position.set(position[0] * x - x / 2, position[1] * y - y / 2, 0);
+    group.add(corner);
+    return corner.position;
+  });
+
+  var previous = cornerVectors[cornerVectors.length - 1];
+  cornerVectors.map(function(current, i) {
+    if (uncapped !== i) {
+      group.add(cylinderMesh(previous, current, outlineWidth / 2, outlineMaterial));
+    }
+    previous = current;
+  });
+
+  return group;
+};
+
+var outlinedCurve = function(segments, angle, radius, width, outlineWidth, materials, outlineMaterial) {
+  var group = new THREE.Object3D();
+
+  var sphereGeometry = new THREE.SphereGeometry(outlineWidth / 2, outlinePrecision, outlinePrecision);
+  var axis = new THREE.Vector3(0, 1, 0);
+  var width = new THREE.Vector3(0, width, 0);
+
+  var innerRadius = new THREE.Vector3(radius - outlineWidth / 2, 0, 0);
+  var midleRadius = new THREE.Vector3(radius - outlineWidth / 2 / 2, 0, 0);
+  var outerRadius = new THREE.Vector3(radius, 0, 0);
+
+  var section, segmentAngle, lastSegmentAngle, lastPosition;
+  for (var i = 0; i <= segments; i++) {
+    segmentAngle = angle * i / segments;
+    if (lastSegmentAngle !== undefined) {
+      section = new THREE.BoxGeometry(1, 1, 1);
+      section.vertices[0] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
+      section.vertices[1] = outerRadius.clone().applyAxisAngle(axis, segmentAngle);
+      section.vertices[2] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(width);
+      section.vertices[3] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
+      section.vertices[4] = innerRadius.clone().applyAxisAngle(axis, segmentAngle);
+      section.vertices[5] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
+      section.vertices[6] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
+      section.vertices[7] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(width);
+
+      section.faces.map(function(face) {
+        face.materialIndex = 0;
+      });
+      section.faces[2].materialIndex = 1;
+      section.faces[3].materialIndex = 1;
+
+      faceMaterial = new THREE.MeshFaceMaterial();
+      faceMaterial.materials = [lightBlue, yellow];
+
+      group.add(new THREE.Mesh(section, faceMaterial));
+    }
+
+    var sphere1 = new THREE.Mesh(sphereGeometry, outlineMaterial);
+    sphere1.position.copy(midleRadius.clone().applyAxisAngle(axis, segmentAngle));
+    group.add(sphere1);
+
+    var sphere2 = new THREE.Mesh(sphereGeometry, outlineMaterial);
+    sphere2.position.copy(sphere1.position).add(width)
+    group.add(sphere2);
+
+    if (lastPosition) {
+      group.add(cylinderMesh(lastPosition, sphere1.position, outlineWidth / 2, outlineMaterial));
+      group.add(cylinderMesh(lastPosition.clone().add(width), sphere2.position, outlineWidth / 2, outlineMaterial));
+    }
+
+    lastPosition = sphere1.position;
+    lastSegmentAngle = segmentAngle;
+  }
+
+  return group;
+}
+
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+scene.add(camera);
+camera.position.set(700, 300, -300);
+camera.lookAt(scene.position);
+
+var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+var container = document.getElementById('body');
+container.appendChild(renderer.domElement);
+
+THREEx.WindowResize(renderer, camera);
+
+var controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+var light = new THREE.PointLight(0xffffff);
+light.position.set(0, 150, 100);
+scene.add(light);
+
+var lightBlue = new THREE.MeshBasicMaterial({ color: 0x7be0fb });
+var yellow = new THREE.MeshBasicMaterial({ color: 0xfce057 });
+var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
+
+var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+var head = outlinedSheet(150, 116, outlineWidth, yellow, outlineMaterial);
+head.position.set(0, 149, -58);
+head.rotation.x = Math.PI / 2;
+scene.add(head);
+
+var middle = outlinedSheet(150, 118, outlineWidth, yellow, outlineMaterial, 1);
+middle.position.set(0, -28, -63);
+middle.rotation.x = Math.PI / 2;
+scene.add(middle);
+
+var leg = outlinedSheet(150, 160, outlineWidth, lightBlue, outlineMaterial);
+leg.position.set(0, -89, -180);
+leg.rotation.x = Math.PI / 4;
+scene.add(leg);
+
+var back = outlinedSheet(150, 298, outlineWidth, darkBlue, outlineMaterial);
+back.position.set(0, -1, 0);
+scene.add(back);
+
+var curve = outlinedCurve(16, Math.PI, 90, 150, outlineWidth, [lightBlue, yellow], outlineMaterial);
+curve.rotation.z = Math.PI/2;
+curve.position.x = 75;
+curve.position.y = 60;
+curve.position.z = -120;
+scene.add(curve);
+
+var animate = function() {
+  renderer.render(scene, camera);
+  controls.update();
+  requestAnimationFrame(animate);
+}
+
 animate();
-
-// FUNCTIONS
-function init()
-{
-    // SCENE
-    scene1 = new THREE.Scene();
-    scene2 = new THREE.Scene();
-    // CAMERA
-    var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
-    var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
-    camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
-    scene1.add(camera);
-    scene2.add(camera);
-    camera.position.set(1000,500,-500);
-    camera.lookAt(scene1.position);
-
-    // RENDERER
-    if ( Detector.webgl )
-        renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
-    else
-        renderer = new THREE.CanvasRenderer();
-    renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
-    renderer.autoClear = false;
-    container = document.getElementById( 'ThreeJS' );
-    container.appendChild( renderer.domElement );
-    // EVENTS
-    THREEx.WindowResize(renderer, camera);
-    THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
-    // CONTROLS
-    controls = new THREE.OrbitControls( camera, renderer.domElement );
-    // STATS
-    stats = new Stats();
-    stats.domElement.style.position = 'absolute';
-    stats.domElement.style.bottom = '0px';
-    stats.domElement.style.zIndex = 100;
-    container.appendChild( stats.domElement );
-    // LIGHT
-    var light = new THREE.PointLight(0xffffff);
-    light.position.set(0,150,100);
-    scene1.add(light);
-    var light = new THREE.PointLight(0xffffff);
-    light.position.set(-50,150,-100);
-    scene1.add(light);
-    // FLOOR
-    // var floorTexture = new THREE.ImageUtils.loadTexture( 'images/checkerboard.jpg' );
-    // floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-    // floorTexture.repeat.set( 10, 10 );
-    // var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
-    // var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
-    // var floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    // floor.position.y = -0.5;
-    // floor.rotation.x = Math.PI / 2;
-    // scene1.add(floor);
-    // SKYBOX/FOG
-    // var skyBoxGeometry = new THREE.CubeGeometry( 10000, 10000, 10000 );
-    // var skyBoxMaterial = new THREE.MeshBasicMaterial( { color: 0x9999ff, side: THREE.BackSide } );
-    // var skyBox = new THREE.Mesh( skyBoxGeometry, skyBoxMaterial );
-    // scene1.add(skyBox);
-
-    ////////////
-    // CUSTOM //
-    ////////////
-
-    var material = new THREE.MeshBasicMaterial( { color: 0x7be0fb } );
-    var material2 = new THREE.MeshBasicMaterial( { color: 0xfce057 } );
-    var material3 = new THREE.MeshBasicMaterial( { color: 0x3665c7 });
-
-    // var sphereGeometry = new THREE.BoxGeometry(80, 80, 2);
-    // var sphere = new THREE.Mesh( sphereGeometry, material );
-    // sphere.position.set(0, 0, 0);
-    // scene1.add( sphere );
-
-    var outlineMaterial = new THREE.MeshBasicMaterial( { color: 0x000000 } );
-    // var outlineMesh1 = new THREE.Mesh( sphereGeometry, outlineMaterial );
-    // outlineMesh1.position.set(0, 0, 0);
-    // outlineMesh1.scale.multiply(new THREE.Vector3(1.05, 1.05, 3));
-    // scene2.add( outlineMesh1 );
-
-    // TOP
-    var x = 150, y = 115, z = 2;
-    var cubeGeometry = new THREE.BoxGeometry( x, y, z );
-    var cube = new THREE.Mesh( cubeGeometry, material2 );
-    cube.position.set(0, 150, -58);
-    cube.rotation.x = Math.PI/2;
-    scene1.add( cube );
-
-    var outline = new THREE.Mesh( cubeGeometry, outlineMaterial );
-    outline.scale.multiply(new THREE.Vector3((x + 8) / x, (y + 8) / y, (z + 8) / z));
-    outline.position.set(0, 150, -58);
-    outline.rotation.x = Math.PI/2;
-    scene2.add( outline );
-
-    // MIDDLE
-    var x = 150, y = 120, z = 2;
-    var cubeGeometry = new THREE.BoxGeometry( x, y, z );
-    var cube = new THREE.Mesh( cubeGeometry, material2 );
-    cube.position.set(0, -28, -61);
-    cube.rotation.x = Math.PI/2;
-    scene1.add( cube );
-
-    var outline = new THREE.Mesh( cubeGeometry, outlineMaterial );
-    outline.scale.multiply(new THREE.Vector3((x + 8) / x, (y + 8) / y, (z + 8) / z));
-    outline.position.set(0, -28, -61);
-    outline.rotation.x = Math.PI/2;
-    scene2.add( outline );
-
-    // LEG
-    var x = 150, y = 165, z = 2;
-    var cubeGeometry = new THREE.BoxGeometry( x, y, z );
-    var cube = new THREE.Mesh( cubeGeometry, material );
-    cube.position.set(0, -88, -180);
-    cube.rotation.x = Math.PI/4;
-    scene1.add( cube );
-
-    var outline = new THREE.Mesh( cubeGeometry, outlineMaterial );
-    outline.scale.multiply(new THREE.Vector3((x + 8) / x, (y + 8) / y, (z + 8) / z));
-    outline.position.set(0, -88, -180);
-    outline.rotation.x = Math.PI/4;
-    scene2.add( outline );
-
-    // BACK
-    var x = 150, y = 300, z = 2;
-    var cubeGeometry = new THREE.BoxGeometry( x, y, z );
-    var cube = new THREE.Mesh( cubeGeometry, material3 );
-    scene1.add( cube );
-
-    var outline = new THREE.Mesh( cubeGeometry, outlineMaterial );
-    outline.position.set(0, 0, 0);
-    outline.scale.multiply(new THREE.Vector3((x + 8) / x, (y + 8) / y, (z + 8) / z));
-    scene2.add( outline );
-
-    var segments = 16;
-    var angle = Math.PI;
-    var radius = 90;
-    var thickness = 2;
-    var width = 150;
-
-    var curve = new THREE.Object3D();
-    var axis = new THREE.Vector3(0, 1, 0);
-    var width = new THREE.Vector3(0, width, 0);
-    var innerRadius = new THREE.Vector3(radius - thickness, 0, 0);
-    var outerRadius = new THREE.Vector3(radius, 0, 0);
-    var geom, mesh, segmentAngle, nextSegmentAngle;
-    for (var i = 0; i < segments; i++) {
-        segmentAngle = angle * i / segments;
-        nextSegmentAngle = angle * (i + 1) / segments;
-        geom = new THREE.BoxGeometry(1, 1, 1);
-        geom.vertices[0] = outerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).add(width);
-        geom.vertices[1] = outerRadius.clone().applyAxisAngle(axis, nextSegmentAngle);
-        geom.vertices[2] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
-        geom.vertices[3] = outerRadius.clone().applyAxisAngle(axis, segmentAngle);
-        geom.vertices[4] = innerRadius.clone().applyAxisAngle(axis, nextSegmentAngle);
-        geom.vertices[5] = innerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).add(width);
-        geom.vertices[6] = innerRadius.clone().applyAxisAngle(axis, segmentAngle);
-        geom.vertices[7] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width);
-
-        geom.faces.map(function(face) {
-            face.materialIndex = 0;
-        });
-        geom.faces[2].materialIndex = 1;
-        geom.faces[3].materialIndex = 1;
-
-        faceMaterial = new THREE.MeshFaceMaterial();
-        faceMaterial.materials = [material, material2];
-
-        mesh = new THREE.Mesh(geom, faceMaterial);
-        curve.add( mesh );
-    }
-    curve.rotation.z = Math.PI/2;
-    curve.position.x = 75;
-    curve.position.y = 61;
-    curve.position.z = -120;
-    scene1.add(curve);
-
-    var curveOutline = new THREE.Object3D();
-    var padding = new THREE.Vector3(0, 4, 0);
-    var innerRadius = new THREE.Vector3(radius - thickness - 4, 0, 0);
-    var outerRadius = new THREE.Vector3(radius + 4, 0, 0);
-    var geom, mesh, segmentAngle, nextSegmentAngle;
-    for (var i = 0; i < segments; i++) {
-        segmentAngle = angle * i / segments;
-        nextSegmentAngle = angle * (i + 1) / segments;
-        geom = new THREE.BoxGeometry(1, 1, 1);
-        geom.vertices[0] = outerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).add(width).add(padding);
-        geom.vertices[1] = outerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).sub(padding);
-        geom.vertices[2] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width).add(padding);
-        geom.vertices[3] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).sub(padding);
-        geom.vertices[4] = innerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).sub(padding);
-        geom.vertices[5] = innerRadius.clone().applyAxisAngle(axis, nextSegmentAngle).add(width).add(padding);
-        geom.vertices[6] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).sub(padding);
-        geom.vertices[7] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(width).add(padding);
-
-        mesh = new THREE.Mesh( geom, outlineMaterial );
-        curveOutline.add( mesh );
-    }
-    curveOutline.rotation.z = Math.PI/2;
-    curveOutline.position.x = 75;
-    curveOutline.position.y = 61;
-    curveOutline.position.z = -120;
-    scene2.add(curveOutline);
-}
-
-function animate()
-{
-    requestAnimationFrame( animate );
-    render();
-    update();
-}
-
-function update()
-{
-    if ( keyboard.pressed("z") )
-    {
-        // do something
-    }
-
-    controls.update();
-    stats.update();
-}
-
-function render()
-{
-    renderer.render( scene2, camera );
-    renderer.clearDepth();
-    renderer.render( scene1, camera );
-}
 
 </script>
 
