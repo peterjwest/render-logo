@@ -153,31 +153,36 @@ var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
 
 var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
+var shape = new THREE.Object3D();
+
 var head = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial);
 head.position.set(0, 148, -59);
 head.rotation.x = Math.PI / 2;
-scene.add(head);
+shape.add(head);
 
 var middle = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial, 1);
 middle.position.set(0, -28, -63);
 middle.rotation.x = Math.PI / 2;
-scene.add(middle);
+shape.add(middle);
 
 var leg = outlinedSheet(shapeWidth, 150, outlineWidth, lightBlue, outlineMaterial);
 leg.position.set(0, -92, -168);
 leg.rotation.x = Math.PI * 1 / 5;
-scene.add(leg);
+shape.add(leg);
 
 var back = outlinedSheet(shapeWidth, 298, outlineWidth, darkBlue, outlineMaterial);
 back.position.set(0, -1, 0);
-scene.add(back);
+shape.add(back);
 
 var curve = outlinedCurve(16, Math.PI, 90, shapeWidth, outlineWidth, [lightBlue, yellow], outlineMaterial);
 curve.rotation.z = Math.PI / 2;
 curve.position.x = shapeWidth / 2;
 curve.position.y = 60;
 curve.position.z = -120;
-scene.add(curve);
+shape.add(curve);
+
+shape.position.z = 100;
+scene.add(shape);
 
 var animate = function() {
   renderer.render(scene, camera);
