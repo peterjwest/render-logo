@@ -17,8 +17,8 @@
 <script src="js/THREEx.WindowResize.js"></script>
 <script>
 
-var outlinePrecision = 8;
-var outlineWidth = 8;
+var outlinePrecision = 6;
+var outlineWidth = 9;
 
 var cylinderMesh = function(a, b, radius, material) {
   var direction = b.clone().sub(a);
@@ -115,9 +115,16 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
 }
 
 var scene = new THREE.Scene();
-var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
-scene.add(camera);
-camera.position.set(700, 300, -600);
+
+// var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
+// scene.add(camera);
+// camera.position.set(700, 300, -600);
+// camera.lookAt(scene.position);
+
+var width = window.innerWidth;
+var height = window.innerHeight;
+var camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0.1, 100000);
+camera.position.set(800, 200, -600);
 camera.lookAt(scene.position);
 
 var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -140,8 +147,8 @@ var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
 
 var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-var head = outlinedSheet(150, 116, outlineWidth, yellow, outlineMaterial);
-head.position.set(0, 149, -58);
+var head = outlinedSheet(150, 118, outlineWidth, yellow, outlineMaterial);
+head.position.set(0, 148, -59);
 head.rotation.x = Math.PI / 2;
 scene.add(head);
 
@@ -150,9 +157,9 @@ middle.position.set(0, -28, -63);
 middle.rotation.x = Math.PI / 2;
 scene.add(middle);
 
-var leg = outlinedSheet(150, 160, outlineWidth, lightBlue, outlineMaterial);
-leg.position.set(0, -89, -180);
-leg.rotation.x = Math.PI / 4;
+var leg = outlinedSheet(150, 150, outlineWidth, lightBlue, outlineMaterial);
+leg.position.set(0, -92, -168);
+leg.rotation.x = Math.PI * 1 / 5;
 scene.add(leg);
 
 var back = outlinedSheet(150, 298, outlineWidth, darkBlue, outlineMaterial);
