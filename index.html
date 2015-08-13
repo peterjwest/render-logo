@@ -5,7 +5,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 </head>
-<body id="body">
+<style>
+ body { margin: 0; }
+ #page { overflow: hidden; }
+</style>
+<body>
+<div id="page"></div>
 
 <script src="http://threejs.org/build/three.js"></script>
 <script src="js/OrbitControls.js"></script>
@@ -112,13 +117,13 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
 scene.add(camera);
-camera.position.set(700, 300, -300);
+camera.position.set(700, 300, -600);
 camera.lookAt(scene.position);
 
 var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
-var container = document.getElementById('body');
+var container = document.getElementById('page');
 container.appendChild(renderer.domElement);
 
 THREEx.WindowResize(renderer, camera);
