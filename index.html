@@ -19,8 +19,21 @@
 <script>
 
 var outlinePrecision = 6;
-var outlineWidth = 9;
+var outlineWidth = 8;
 var shapeWidth = 160;
+var curveRadius = 90;
+
+var hideMesh = function(child) {
+  if (child instanceof THREE.Mesh) {
+    child.visible = false;
+  }
+};
+
+var showMesh = function(child) {
+  if (child instanceof THREE.Mesh) {
+    child.visible = true;
+  }
+};
 
 var cylinderMesh = function(a, b, radius, material) {
   var direction = b.clone().sub(a);
@@ -67,22 +80,25 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
   var widthVector = new THREE.Vector3(0, width, 0);
 
   var innerRadius = new THREE.Vector3(radius - outlineWidth / 2, 0, 0);
-  var midleRadius = new THREE.Vector3(radius - outlineWidth / 2 / 2, 0, 0);
+  var middleRadius = new THREE.Vector3(radius - outlineWidth / 2 / 2, 0, 0);
   var outerRadius = new THREE.Vector3(radius, 0, 0);
 
-  var section, segmentAngle, lastSegmentAngle, lastPosition;
-  for (var i = 0; i <= segments; i++) {
-    segmentAngle = angle * i / segments;
-    if (lastSegmentAngle !== undefined) {
+  var section, currentAngle, lastPosition, sectionGroup;
+  segmentAngle = angle / segments;
+  for (var i = 0; i < segments; i++) {
+    sectionGroup = new THREE.Object3D();
+    currentAngle = angle * i / segments;
+
+    if (i < segments) {
       section = new THREE.BoxGeometry(1, 1, 1);
       section.vertices[0] = outerRadius.clone().applyAxisAngle(axis, segmentAngle).add(widthVector);
       section.vertices[1] = outerRadius.clone().applyAxisAngle(axis, segmentAngle);
-      section.vertices[2] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(widthVector);
-      section.vertices[3] = outerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
+      section.vertices[2] = outerRadius.clone().applyAxisAngle(axis, 0).add(widthVector);
+      section.vertices[3] = outerRadius.clone().applyAxisAngle(axis, 0);
       section.vertices[4] = innerRadius.clone().applyAxisAngle(axis, segmentAngle);
       section.vertices[5] = innerRadius.clone().applyAxisAngle(axis, segmentAngle).add(widthVector);
-      section.vertices[6] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle);
-      section.vertices[7] = innerRadius.clone().applyAxisAngle(axis, lastSegmentAngle).add(widthVector);
+      section.vertices[6] = innerRadius.clone().applyAxisAngle(axis, 0);
+      section.vertices[7] = innerRadius.clone().applyAxisAngle(axis, 0).add(widthVector);
 
       section.faces.map(function(face) {
         face.materialIndex = 0;
@@ -93,47 +109,108 @@ var outlinedCurve = function(segments, angle, radius, width, outlineWidth, mater
       section.faces[5].materialIndex = 1;
 
       faceMaterial = new THREE.MeshFaceMaterial();
-      faceMaterial.materials = [lightBlue, yellow];
+      faceMaterial.materials = materials;
 
-      group.add(new THREE.Mesh(section, faceMaterial));
+      sectionGroup.add(new THREE.Mesh(section, faceMaterial));
     }
 
     var sphere1 = new THREE.Mesh(sphereGeometry, outlineMaterial);
-    sphere1.position.copy(midleRadius.clone().applyAxisAngle(axis, segmentAngle));
-    group.add(sphere1);
+    sphere1.position.copy(middleRadius.clone().applyAxisAngle(axis, segmentAngle));
+    sectionGroup.add(sphere1);
 
     var sphere2 = new THREE.Mesh(sphereGeometry, outlineMaterial);
-    sphere2.position.copy(sphere1.position).add(widthVector)
-    group.add(sphere2);
+    sphere2.position.copy(sphere1.position).add(widthVector);
+    sectionGroup.add(sphere2);
 
-    if (lastPosition) {
-      group.add(cylinderMesh(lastPosition, sphere1.position, outlineWidth / 2, outlineMaterial));
-      group.add(cylinderMesh(
-        lastPosition.clone().add(widthVector),
-        sphere2.position,
+    if (i < segments) {
+      sectionGroup.add(cylinderMesh(
+        middleRadius,
+        middleRadius.clone().applyAxisAngle(axis, segmentAngle),
+        outlineWidth / 2,
+        outlineMaterial
+      ));
+      sectionGroup.add(cylinderMesh(
+        middleRadius.clone().add(widthVector),
+        middleRadius.clone().applyAxisAngle(axis, segmentAngle).add(widthVector),
         outlineWidth / 2,
         outlineMaterial
       ));
     }
 
-    lastPosition = sphere1.position;
-    lastSegmentAngle = segmentAngle;
+    sectionGroup.rotation.y = currentAngle;
+    group.add(sectionGroup);
   }
 
   return group;
 }
 
+var renderLogo = function(curveCenter) {
+  var lightBlue = new THREE.MeshBasicMaterial({ color: 0x7be0fb });
+  var yellow = new THREE.MeshBasicMaterial({ color: 0xfce057 });
+  var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
+
+  var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+  var shape = new THREE.Object3D();
+
+  var head = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial);
+  head.position.set(0, 148, -59);
+  head.rotation.x = Math.PI / 2;
+  shape.add(head);
+
+  var middle = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial, 1);
+  middle.position.set(0, -28, -63);
+  middle.rotation.x = Math.PI / 2;
+  shape.add(middle);
+
+  var leg = outlinedSheet(shapeWidth, 150, outlineWidth, lightBlue, outlineMaterial);
+  leg.position.set(0, -92, -168);
+  leg.rotation.x = Math.PI * 1 / 5;
+  shape.add(leg);
+
+  var back = outlinedSheet(shapeWidth, 298, outlineWidth, darkBlue, outlineMaterial);
+  back.position.set(0, -1, 0);
+  shape.add(back);
+
+  var curve = outlinedCurve(16, Math.PI, curveRadius, shapeWidth, outlineWidth, [lightBlue, yellow], outlineMaterial);
+  curve.rotation.z = Math.PI / 2;
+  curve.position.x = shapeWidth / 2;
+  curve.position.y = 60;
+  curve.position.z = -120;
+  shape.add(curve);
+
+  shape.curveCenter = new THREE.Vector3(0, 60, -120);
+
+  var start = new THREE.Vector3(-shapeWidth / 2, 0, 0);
+  var end = new THREE.Vector3(shapeWidth / 2, 0, 0);
+  var curveOutline = cylinderMesh(start, end, outlineWidth / 4, outlineMaterial);
+  curveOutline.position.copy(shape.curveCenter);
+  shape.add(curveOutline);
+
+  shape.position.z = 100;
+  shape.parts = {
+    head: head,
+    middle: middle,
+    leg: leg,
+    back: back,
+    curve: curve,
+    curveOutline: curveOutline
+  };
+
+  return shape;
+};
+
 var scene = new THREE.Scene();
 
 // var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
 // scene.add(camera);
-// camera.position.set(700, 300, -600);
+// camera.position.set(900, 250, -600);
 // camera.lookAt(scene.position);
 
 var width = window.innerWidth;
 var height = window.innerHeight;
-var camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0.1, 100000);
-camera.position.set(800, 200, -600);
+var camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0, 10000);
+camera.position.set(900, 250, -600);
 camera.lookAt(scene.position);
 
 var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -146,52 +223,171 @@ container.appendChild(renderer.domElement);
 
 var controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-var light = new THREE.PointLight(0xffffff);
-light.position.set(0, 150, 100);
-scene.add(light);
-
-var lightBlue = new THREE.MeshBasicMaterial({ color: 0x7be0fb });
-var yellow = new THREE.MeshBasicMaterial({ color: 0xfce057 });
-var darkBlue = new THREE.MeshBasicMaterial({ color: 0x3665c7 });
-
-var outlineMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-
-var shape = new THREE.Object3D();
-
-var head = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial);
-head.position.set(0, 148, -59);
-head.rotation.x = Math.PI / 2;
-shape.add(head);
-
-var middle = outlinedSheet(shapeWidth, 118, outlineWidth, yellow, outlineMaterial, 1);
-middle.position.set(0, -28, -63);
-middle.rotation.x = Math.PI / 2;
-shape.add(middle);
-
-var leg = outlinedSheet(shapeWidth, 150, outlineWidth, lightBlue, outlineMaterial);
-leg.position.set(0, -92, -168);
-leg.rotation.x = Math.PI * 1 / 5;
-shape.add(leg);
-
-var back = outlinedSheet(shapeWidth, 298, outlineWidth, darkBlue, outlineMaterial);
-back.position.set(0, -1, 0);
-shape.add(back);
-
-var curve = outlinedCurve(16, Math.PI, 90, shapeWidth, outlineWidth, [lightBlue, yellow], outlineMaterial);
-curve.rotation.z = Math.PI / 2;
-curve.position.x = shapeWidth / 2;
-curve.position.y = 60;
-curve.position.z = -120;
-shape.add(curve);
-
-shape.position.z = 100;
+var shape = renderLogo();
 scene.add(shape);
 
+var cameraPosition = { angle: -0.4 };
+var i = 0;
+
+var swish = function() {
+  i++;
+  (createjs.Tween
+    .get(cameraPosition)
+    // .to({ angle: 0 }, 600, createjs.Ease.cubicIn)
+    .to({ angle: 0.25 }, 1200, createjs.Ease.quadInOut)
+    .call(function() {
+      createjs.Tween
+      .get(cameraPosition)
+      .to({ angle: 0 }, 600, createjs.Ease.cubicIn)
+      .to({ angle: -0.25 }, 600, createjs.Ease.quadOut)
+      .call(function() {
+        if (i % 3 === 1) {
+          return createjs.Tween
+          .get(cameraPosition)
+          .to({ angle: 0 }, 600, createjs.Ease.cubicIn)
+          .to({ angle: 0.45 }, 500, createjs.Ease.quadOut)
+          .to({ angle: -Math.PI }, 500, createjs.Ease.cubicIn)
+          .to({ angle: -(2 * Math.PI + 0.25) }, 1300, createjs.Ease.getElasticOut(1, 0.7))
+          .call(function() {
+            cameraPosition.angle = -0.25;
+            swish();
+          });
+        }
+
+        if (i % 3 === 2) {
+          return createjs.Tween
+          .get(shape.scale)
+          .to({ x: 1.3 }, 200, createjs.Ease.cubicInOut)
+          .to({ x: 0 }, 200, createjs.Ease.quadIn)
+          .call(function() {
+            scene.remove(shape);
+          })
+          .wait(1000)
+          .call(function() {
+            scene.add(shape);
+          })
+          .to({ x: 1 }, 1000, createjs.Ease.getElasticOut(1.4, 0.7))
+          .call(swish)
+        }
+
+        if (i % 3 === 0) {
+          return phaseLogo(swish);
+        }
+
+        return swish();
+      });
+    })
+  );
+}
+createjs.Ticker.framerate = 60;
+swish();
+
+var start = camera.position.clone();
+
+var height = 298;
+var phasing = { phase: height };
+
+var phaseSheet = function(sheet, phase, height, actualHeight, min) {
+  if (phase > min) {
+    sheet.traverse(showMesh);
+
+    if (phase > height) phase = height;
+    if (phase < 0) phase = 0;
+
+    phase = phase * actualHeight / height;
+
+    // Sides of back
+    sheet.children[0].scale.y = phase / actualHeight;
+    sheet.children[0].position.y = (phase - actualHeight) / 2;
+    sheet.children[5].scale.y = phase / actualHeight;
+    sheet.children[5].position.y = (phase - actualHeight) / 2;
+    sheet.children[7].scale.y = phase / actualHeight;
+    sheet.children[7].position.y = (phase - actualHeight) / 2;
+
+    // Top of back
+    sheet.children[3].position.y = phase - actualHeight / 2;
+    sheet.children[4].position.y = phase - actualHeight / 2;
+    sheet.children[8].position.y = phase - actualHeight / 2;
+  }
+
+  else {
+    sheet.traverse(hideMesh);
+  }
+};
+
+
+var phaseSection = function(section, phase, height, actualHeight, min) {
+  if (phase > min) {
+    section.traverse(showMesh);
+
+    if (phase > height) phase = height;
+    if (phase < 0) phase = 0;
+
+    phase = phase * actualHeight / height;
+
+    // Sides of back
+    section.children[0].scale.z = phase / actualHeight;
+    section.children[0].position.z = (phase - actualHeight);
+    section.children[3].scale.y = phase / actualHeight;
+    section.children[3].position.z = -8.59 + (phase - actualHeight) / 2;
+    section.children[4].scale.y = phase / actualHeight;
+    section.children[4].position.z = -8.59 + (phase - actualHeight) / 2;
+  }
+
+  else {
+    section.traverse(hideMesh);
+  }
+};
+
+var phaseLogo = function(callback) {
+  var interval = setInterval(function() {
+    shape.parts.head.traverse(phasing.phase > (height - 3) ? showMesh : hideMesh);
+    shape.parts.middle.traverse(phasing.phase > 120 ? showMesh : hideMesh);
+
+    phaseSheet(shape.parts.back, phasing.phase, height, height, 1);
+    phaseSheet(shape.parts.leg, phasing.phase, 115, 150, 1);
+
+    shape.parts.curve.children.map(function(child) {
+      var curvePhase = phasing.phase - 202 - (curveRadius) * Math.cos(child.rotation.y + 0.2);
+      phaseSection(child, curvePhase, 18 * Math.sin(child.rotation.y + 0.1), 18, 0.1);
+    });
+  }, 10);
+
+  createjs.Tween
+    .get(phasing)
+    .to({ phase: 0 }, 900, createjs.Ease.quadInOut)
+    .to({ phase: height }, 900, createjs.Ease.quadInOut)
+    .call(function() {
+      clearInterval(interval);
+      callback();
+    });
+};
+
 var animate = function() {
+
+  camera.position.copy(start).applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraPosition.angle);
+  camera.lookAt(scene.position);
+
+  var cameraVector = (camera.type === 'PerspectiveCamera' ?
+    camera.position.clone().sub(shape.curveCenter) :
+    new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion)
+  );
+
+  var radiusVector = (cameraVector
+    .cross(new THREE.Vector3(1, 0, 0))
+    .normalize()
+    .multiplyScalar(camera.position.y > shape.curveCenter.y ? 1 : -1)
+    .multiplyScalar(curveRadius)
+  );
+
+  shape.parts.curveOutline.position.copy(shape.curveCenter).add(radiusVector);
+  shape.parts.curveOutline.visible = shape.parts.curveOutline.position.z < shape.curveCenter.z;
+  if (phasing.phase < shape.parts.curveOutline.position.y + 145) shape.parts.curveOutline.visible = false;
+
   renderer.render(scene, camera);
   controls.update();
   requestAnimationFrame(animate);
-}
+};
 
 animate();
 
