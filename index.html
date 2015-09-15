@@ -7,14 +7,11 @@
 </head>
 <style>
  body { margin: 0; }
- #page { overflow: hidden; }
 </style>
 <body>
 <div id="page"></div>
 
 <script src="http://threejs.org/build/three.js"></script>
-<script src="js/OrbitControls.js"></script>
-<script src="js/THREEx.WindowResize.js"></script>
 <script src="js/tweenjs-0.6.1.combined.js"></script>
 <script>
 
@@ -202,26 +199,17 @@ var renderLogo = function(curveCenter) {
 
 var scene = new THREE.Scene();
 
-// var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20000);
-// scene.add(camera);
-// camera.position.set(900, 250, -600);
-// camera.lookAt(scene.position);
-
-var width = window.innerWidth;
-var height = window.innerHeight;
+var width = 400;
+var height = 400;
 var camera = new THREE.OrthographicCamera(width / - 2, width / 2, height / 2, height / - 2, 0, 10000);
 camera.position.set(900, 250, -600);
 camera.lookAt(scene.position);
 
 var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(300, 300);
 
 var container = document.getElementById('page');
 container.appendChild(renderer.domElement);
-
-// THREEx.WindowResize(renderer, camera);
-
-var controls = new THREE.OrbitControls(camera, renderer.domElement);
 
 var shape = renderLogo();
 scene.add(shape);
@@ -385,7 +373,6 @@ var animate = function() {
   if (phasing.phase < shape.parts.curveOutline.position.y + 145) shape.parts.curveOutline.visible = false;
 
   renderer.render(scene, camera);
-  controls.update();
   requestAnimationFrame(animate);
 };
 
