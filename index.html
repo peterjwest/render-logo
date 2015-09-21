@@ -212,182 +212,194 @@ camera.lookAt(scene.position);
 var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(300, 300);
 
-var container = document.getElementById('logo');
-var canvas = renderer.domElement;
-container.removeChild(document.getElementById('fallback'));
-container.appendChild(canvas);
+// Detect WebGL support
+try {
+  canvas = document.createElement('canvas');
+  ctx = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+}
+catch (e) {
+  ctx = false;
+}
 
-var shape = renderLogo();
-scene.add(shape);
+// Run if WebGL is supported
+if (ctx) {
+  var container = document.getElementById('logo');
+  var canvas = renderer.domElement;
+  container.removeChild(document.getElementById('fallback'));
+  container.appendChild(canvas);
 
-var start = camera.position.clone();
+  var shape = renderLogo();
+  scene.add(shape);
 
-var height = 298;
-var phasing = { phase: height };
+  var start = camera.position.clone();
 
-var phaseSheet = function(sheet, phase, height, actualHeight, min) {
-  if (phase > min) {
-    sheet.traverse(showMesh);
+  var height = 298;
+  var phasing = { phase: height };
 
-    if (phase > height) phase = height;
-    if (phase < 0) phase = 0;
+  var phaseSheet = function(sheet, phase, height, actualHeight, min) {
+    if (phase > min) {
+      sheet.traverse(showMesh);
 
-    phase = phase * actualHeight / height;
+      if (phase > height) phase = height;
+      if (phase < 0) phase = 0;
 
-    // Sides of back
-    sheet.children[0].scale.y = phase / actualHeight;
-    sheet.children[0].position.y = (phase - actualHeight) / 2;
-    sheet.children[5].scale.y = phase / actualHeight;
-    sheet.children[5].position.y = (phase - actualHeight) / 2;
-    sheet.children[7].scale.y = phase / actualHeight;
-    sheet.children[7].position.y = (phase - actualHeight) / 2;
+      phase = phase * actualHeight / height;
 
-    // Top of back
-    sheet.children[3].position.y = phase - actualHeight / 2;
-    sheet.children[4].position.y = phase - actualHeight / 2;
-    sheet.children[8].position.y = phase - actualHeight / 2;
-  }
+      // Sides of back
+      sheet.children[0].scale.y = phase / actualHeight;
+      sheet.children[0].position.y = (phase - actualHeight) / 2;
+      sheet.children[5].scale.y = phase / actualHeight;
+      sheet.children[5].position.y = (phase - actualHeight) / 2;
+      sheet.children[7].scale.y = phase / actualHeight;
+      sheet.children[7].position.y = (phase - actualHeight) / 2;
 
-  else {
-    sheet.traverse(hideMesh);
-  }
-};
+      // Top of back
+      sheet.children[3].position.y = phase - actualHeight / 2;
+      sheet.children[4].position.y = phase - actualHeight / 2;
+      sheet.children[8].position.y = phase - actualHeight / 2;
+    }
+
+    else {
+      sheet.traverse(hideMesh);
+    }
+  };
 
 
-var phaseSection = function(section, phase, height, actualHeight, min) {
-  if (phase > min) {
-    section.traverse(showMesh);
+  var phaseSection = function(section, phase, height, actualHeight, min) {
+    if (phase > min) {
+      section.traverse(showMesh);
 
-    if (phase > height) phase = height;
-    if (phase < 0) phase = 0;
+      if (phase > height) phase = height;
+      if (phase < 0) phase = 0;
 
-    phase = phase * actualHeight / height;
+      phase = phase * actualHeight / height;
 
-    // Sides of back
-    section.children[0].scale.z = phase / actualHeight;
-    section.children[0].position.z = (phase - actualHeight);
-    section.children[3].scale.y = phase / actualHeight;
-    section.children[3].position.z = -8.59 + (phase - actualHeight) / 2;
-    section.children[4].scale.y = phase / actualHeight;
-    section.children[4].position.z = -8.59 + (phase - actualHeight) / 2;
-  }
+      // Sides of back
+      section.children[0].scale.z = phase / actualHeight;
+      section.children[0].position.z = (phase - actualHeight);
+      section.children[3].scale.y = phase / actualHeight;
+      section.children[3].position.z = -8.59 + (phase - actualHeight) / 2;
+      section.children[4].scale.y = phase / actualHeight;
+      section.children[4].position.z = -8.59 + (phase - actualHeight) / 2;
+    }
 
-  else {
-    section.traverse(hideMesh);
-  }
-};
+    else {
+      section.traverse(hideMesh);
+    }
+  };
 
-var interval = setInterval(function() {
-  shape.parts.head.traverse(phasing.phase > (height - 3) ? showMesh : hideMesh);
-  shape.parts.middle.traverse(phasing.phase > 112 ? showMesh : hideMesh);
+  var interval = setInterval(function() {
+    shape.parts.head.traverse(phasing.phase > (height - 3) ? showMesh : hideMesh);
+    shape.parts.middle.traverse(phasing.phase > 112 ? showMesh : hideMesh);
 
-  phaseSheet(shape.parts.back, phasing.phase + 10, height, height, 1);
-  phaseSheet(shape.parts.leg, phasing.phase, 115, 150, 1);
+    phaseSheet(shape.parts.back, phasing.phase + 10, height, height, 1);
+    phaseSheet(shape.parts.leg, phasing.phase, 115, 150, 1);
 
-  shape.parts.curve.children.map(function(child) {
-    var curvePhase = phasing.phase - 202 - (curveRadius) * Math.cos(child.rotation.y + 0.2);
-    phaseSection(child, curvePhase, 18 * Math.sin(child.rotation.y + 0.1), 18, 0.1);
-  });
-}, 10);
+    shape.parts.curve.children.map(function(child) {
+      var curvePhase = phasing.phase - 202 - (curveRadius) * Math.cos(child.rotation.y + 0.2);
+      phaseSection(child, curvePhase, 18 * Math.sin(child.rotation.y + 0.1), 18, 0.1);
+    });
+  }, 10);
 
-var a = 0;
-var v = 0.02;
-var angle = 0;
+  var a = 0;
+  var v = 0.02;
+  var angle = 0;
 
-var dragStart = false;
-var mouseStart = [];
-var mousePosition = [];
+  var dragStart = false;
+  var mouseStart = [];
+  var mousePosition = [];
 
-canvas.addEventListener('mousedown', function(mouse) {
-  dragStart = Date.now();
-  mouseStart = [mouse.clientX, mouse.clientY];
-  mousePosition = [mouse.clientX, mouse.clientY];
-}, false);
-
-window.addEventListener('mouseup', function(mouse) {
-  dragStart = false;
-}, false);
-
-canvas.addEventListener('blur', function(mouse) {
-  dragStart = false;
-}, false);
-
-canvas.addEventListener('mousemove', function(mouse) {
-  if (dragStart) {
+  canvas.addEventListener('mousedown', function(mouse) {
+    dragStart = Date.now();
+    mouseStart = [mouse.clientX, mouse.clientY];
     mousePosition = [mouse.clientX, mouse.clientY];
-  }
-}, false);
+  }, false);
 
-var hiding;
-canvas.addEventListener('click', function(mouse) {
-  if (
-    Math.abs(mouseStart[0] - mousePosition[0]) < 10 &&
-    Math.abs(mouseStart[0] - mousePosition[0]) < 10
-  ) {
-    if (!hiding) {
-      hiding = true;
+  window.addEventListener('mouseup', function(mouse) {
+    dragStart = false;
+  }, false);
 
-      return createjs.Tween
-      .get(shape.scale)
-      .to({ x: 0.65 }, 400, createjs.Ease.quadIn)
-      .to({ x: 1 }, 900, createjs.Ease.elasticOut)
-      .call(function() {
-        hiding = false;
-      })
+  canvas.addEventListener('blur', function(mouse) {
+    dragStart = false;
+  }, false);
+
+  canvas.addEventListener('mousemove', function(mouse) {
+    if (dragStart) {
+      mousePosition = [mouse.clientX, mouse.clientY];
     }
-  }
-});
+  }, false);
 
-var sign = function(value) {
-  return value > 0 ? 1 : -1;
-};
+  var hiding;
+  canvas.addEventListener('click', function(mouse) {
+    if (
+      Math.abs(mouseStart[0] - mousePosition[0]) < 10 &&
+      Math.abs(mouseStart[0] - mousePosition[0]) < 10
+    ) {
+      if (!hiding) {
+        hiding = true;
 
-var animate = function() {
-  phasing.phase = (phasing.phase * 7 + height) / 8;
+        return createjs.Tween
+        .get(shape.scale)
+        .to({ x: 0.65 }, 400, createjs.Ease.quadIn)
+        .to({ x: 1 }, 900, createjs.Ease.elasticOut)
+        .call(function() {
+          hiding = false;
+        })
+      }
+    }
+  });
 
-  if (dragStart) {
-    var divisor = Math.max(50, Date.now() - dragStart);
+  var sign = function(value) {
+    return value > 0 ? 1 : -1;
+  };
 
-    if (mousePosition[1] > mouseStart[1] + 20) {
-      phasing.phase -= (mousePosition[1] - mouseStart[1] + 20) * 0.21;
-      if (phasing.phase < 0) phasing.phase = 0;
+  var animate = function() {
+    phasing.phase = (phasing.phase * 7 + height) / 8;
+
+    if (dragStart) {
+      var divisor = Math.max(50, Date.now() - dragStart);
+
+      if (mousePosition[1] > mouseStart[1] + 20) {
+        phasing.phase -= (mousePosition[1] - mouseStart[1] + 20) * 0.21;
+        if (phasing.phase < 0) phasing.phase = 0;
+      }
+
+      a = Math.pow(mouseStart[0] - mousePosition[0], 2) * 0.0001 / divisor;
+      if (mousePosition[0] > mouseStart[0]) a = -a;
+    }
+    else {
+      a = -angle * 0.001;
     }
 
-    a = Math.pow(mouseStart[0] - mousePosition[0], 2) * 0.0001 / divisor;
-    if (mousePosition[0] > mouseStart[0]) a = -a;
-  }
-  else {
-    a = -angle * 0.001;
-  }
+    v += a;
+    if (Math.abs(v) > 0.01) v = v * 0.96;
+    angle += v;
 
-  v += a;
-  if (Math.abs(v) > 0.01) v = v * 0.96;
-  angle += v;
+    camera.position.copy(start).applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+    camera.lookAt(scene.position);
 
-  camera.position.copy(start).applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
-  camera.lookAt(scene.position);
+    var cameraVector = (camera.type === 'PerspectiveCamera' ?
+      camera.position.clone().sub(shape.curveCenter) :
+      new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion)
+    );
 
-  var cameraVector = (camera.type === 'PerspectiveCamera' ?
-    camera.position.clone().sub(shape.curveCenter) :
-    new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion)
-  );
+    var radiusVector = (cameraVector
+      .cross(new THREE.Vector3(1, 0, 0))
+      .normalize()
+      .multiplyScalar(camera.position.y > shape.curveCenter.y ? 1 : -1)
+      .multiplyScalar(curveRadius)
+    );
 
-  var radiusVector = (cameraVector
-    .cross(new THREE.Vector3(1, 0, 0))
-    .normalize()
-    .multiplyScalar(camera.position.y > shape.curveCenter.y ? 1 : -1)
-    .multiplyScalar(curveRadius)
-  );
+    shape.parts.curveOutline.position.copy(shape.curveCenter).add(radiusVector);
+    shape.parts.curveOutline.visible = shape.parts.curveOutline.position.z < shape.curveCenter.z;
+    if (phasing.phase < shape.parts.curveOutline.position.y + 145) shape.parts.curveOutline.visible = false;
 
-  shape.parts.curveOutline.position.copy(shape.curveCenter).add(radiusVector);
-  shape.parts.curveOutline.visible = shape.parts.curveOutline.position.z < shape.curveCenter.z;
-  if (phasing.phase < shape.parts.curveOutline.position.y + 145) shape.parts.curveOutline.visible = false;
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  };
 
-  renderer.render(scene, camera);
-  requestAnimationFrame(animate);
-};
-
-animate();
+  animate();
+}
 
 </script>
 
